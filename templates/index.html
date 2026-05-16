@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CommunityConnect</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="container mt-5">
+
+    <h1 class="text-center mb-4">CommunityConnect</h1>
+
+
+    <!-- WEATHER SECTION -->
+
+    <div class="card p-3 mb-4">
+        <h3>Charlotte Weather</h3>
+        <button class="btn btn-primary" onclick="loadWeather()">Load Weather</button>
+
+        <div id="weather-result" class="mt-3"></div>
+    </div>
+
+
+    <!-- CREATE POST -->
+
+    <div class="card p-4 mb-5">
+        <h3>Create Community Post</h3>
+
+        <form id="postForm">
+
+            <input type="text" class="form-control mb-3" id="title" placeholder="Post Title" required>
+
+            <textarea class="form-control mb-3" id="content" placeholder="Write something..." required></textarea>
+
+            <button type="submit" class="btn btn-success">Create Post</button>
+
+        </form>
+    </div>
+
+
+    <!-- POSTS -->
+
+    <div id="postsContainer"></div>
+
+</div>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+
+</body>
+</html>
