@@ -7,41 +7,64 @@
 
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+
 <body>
 
-<div class="container mt-5">
+<nav class="navbar navbar-dark bg-primary">
+    <div class="container-fluid">
+        <span class="navbar-brand">CommunityConnect</span>
 
-    <h1 class="text-center mb-4">CommunityConnect</h1>
+        <div>
+            <a href="/events" class="btn btn-light">Events</a>
+            <a href="/login" class="btn btn-light">Login</a>
+        </div>
+    </div>
+</nav>
 
+<div class="container mt-4">
 
-    <!-- WEATHER SECTION -->
+    <div class="card p-4 mb-4">
+        <h2>Charlotte Weather</h2>
 
-    <div class="card p-3 mb-4">
-        <h3>Charlotte Weather</h3>
-        <button class="btn btn-primary" onclick="loadWeather()">Load Weather</button>
+        <button class="btn btn-primary" onclick="loadWeather()">
+            Load Weather
+        </button>
 
         <div id="weather-result" class="mt-3"></div>
     </div>
 
+    <div class="card p-4 mb-4">
+        <h2>Create Community Post</h2>
 
-    <!-- CREATE POST -->
+        <form id="postForm" enctype="multipart/form-data">
 
-    <div class="card p-4 mb-5">
-        <h3>Create Community Post</h3>
+            <input
+                type="text"
+                class="form-control mb-3"
+                id="title"
+                placeholder="Post Title"
+                required
+            >
 
-        <form id="postForm">
+            <textarea
+                class="form-control mb-3"
+                id="content"
+                placeholder="Write something..."
+                required
+            ></textarea>
 
-            <input type="text" class="form-control mb-3" id="title" placeholder="Post Title" required>
+            <input
+                type="file"
+                class="form-control mb-3"
+                id="image"
+            >
 
-            <textarea class="form-control mb-3" id="content" placeholder="Write something..." required></textarea>
-
-            <button type="submit" class="btn btn-success">Create Post</button>
+            <button type="submit" class="btn btn-success">
+                Create Post
+            </button>
 
         </form>
     </div>
-
-
-    <!-- POSTS -->
 
     <div id="postsContainer"></div>
 
