@@ -1,1 +1,9 @@
 venv/
+antenv/
+__pycache__/
+*.pyc
+.env
+
+# SQLite database is rebuilt from the models on first run.
+# Do NOT commit it, or the stale schema ships to Azure.
+community.db

@@ -10,12 +10,20 @@ async function loadPosts() {
 
     posts.forEach(post => {
 
+        const commentsHtml = post.comments.map(c => `
+            <div class="border-top pt-2 mt-2">
+                <strong>${c.author}</strong>
+                <span class="text-muted small">${c.created_at}</span>
+                <div>${c.comment}</div>
+            </div>
+        `).join('');
+
         container.innerHTML += `
 
         <div class="card p-3 mb-3">
 
             <h3>${post.title}</h3>
-
+            <p class="text-muted small mb-2">by ${post.author} · ${post.created_at}</p>
             <p>${post.content}</p>
 
             ${
@@ -25,11 +33,31 @@ async function loadPosts() {
             }
 
             <button
-                class="btn btn-danger"
+                class="btn btn-danger btn-sm"
                 onclick="deletePost(${post.id})"
             >
                 Delete
             </button>
+
+            <div class="mt-3">
+                <h6>Comments</h6>
+                <div id="comments-${post.id}">${commentsHtml}</div>
+
+                <div class="input-group mt-2">
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="comment-input-${post.id}"
+                        placeholder="Add a comment..."
+                    >
+                    <button
+                        class="btn btn-outline-primary"
+                        onclick="addComment(${post.id})"
+                    >
+                        Post
+                    </button>
+                </div>
+            </div>
 
         </div>
 
@@ -58,6 +86,27 @@ document.getElementById('postForm').addEventListener('submit', async function(e)
 
     loadPosts();
 });
+
+async function addComment(postId) {
+
+    const input = document.getElementById(`comment-input-${postId}`);
+    const text = input.value.trim();
+
+    if (!text) return;
+
+    const formData = new FormData();
+    formData.append('post_id', postId);
+    formData.append('comment', text);
+
+    await fetch('/add-comment', {
+        method: 'POST',
+        body: formData
+    });
+
+    input.value = '';
+
+    loadPosts();
+}
 
 async function deletePost(postId) {
 

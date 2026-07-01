@@ -10,6 +10,16 @@
 
 <body>
 
+<nav class="navbar navbar-dark bg-primary">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">CommunityConnect</a>
+        <div>
+            <a href="/" class="btn btn-light">Home</a>
+            <a href="/login" class="btn btn-light">Login</a>
+        </div>
+    </div>
+</nav>
+
 <div class="container mt-5">
 
     <h1 class="mb-4">Community Events</h1>
@@ -32,6 +42,12 @@ async function loadEvents() {
 
     events.forEach(event => {
 
+        let stars = '';
+        for (let i = 1; i <= 5; i++) {
+            stars += `<button class="btn btn-sm btn-outline-warning"
+                        onclick="rateEvent(${event.id}, ${i})">${i}&#9733;</button> `;
+        }
+
         container.innerHTML += `
 
         <div class="card p-3 mb-3">
@@ -44,10 +60,31 @@ async function loadEvents() {
 
             <p><strong>Date:</strong> ${event.event_date}</p>
 
+            <div>
+                <strong>Rate this event:</strong><br>
+                ${stars}
+                <span id="rate-msg-${event.id}" class="text-success ms-2"></span>
+            </div>
+
         </div>
 
         `;
     });
+}
+
+async function rateEvent(eventId, rating) {
+
+    const formData = new FormData();
+    formData.append('event_id', eventId);
+    formData.append('rating', rating);
+
+    await fetch('/rate-event', {
+        method: 'POST',
+        body: formData
+    });
+
+    document.getElementById(`rate-msg-${eventId}`).textContent =
+        `Thanks! You rated ${rating} star(s).`;
 }
 
 loadEvents();

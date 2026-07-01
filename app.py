@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 import requests
 import os
 import uuid
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -28,11 +27,19 @@ AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 AZURE_CONTAINER_NAME = os.getenv("AZURE_CONTAINER_NAME", "event-images")
 
 
+# =====================================================================
+# MODELS
+# =====================================================================
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # convenience relationships (author -> their content)
+    posts = db.relationship("Post", backref="author", lazy=True)
+    comments = db.relationship("Comment", backref="author", lazy=True)
 
 
 class Event(db.Model):
@@ -42,10 +49,13 @@ class Event(db.Model):
     city = db.Column(db.String(100), nullable=False)
     event_date = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"))   # organizer
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))      # author
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
     image_url = db.Column(db.String(500))
@@ -54,15 +64,21 @@ class Post(db.Model):
 
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    post_id = db.Column(db.Integer, nullable=False)
+    post_id = db.Column(db.Integer, db.ForeignKey("post.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))      # author
     comment = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class Rating(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    event_id = db.Column(db.Integer, nullable=False)
+    event_id = db.Column(db.Integer, db.ForeignKey("event.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))      # rater
     rating = db.Column(db.Integer, nullable=False)
+
+    __table_args__ = (
+        db.CheckConstraint("rating >= 1 AND rating <= 5", name="ck_rating_range"),
+    )
 
 
 def upload_to_blob(file):
@@ -167,6 +183,7 @@ def create_event():
         city=request.form["city"],
         event_date=request.form["event_date"],
         description=request.form["description"],
+        created_by=session.get("user_id"),      # organizer -> user.id (if logged in)
     )
 
     db.session.add(event)
@@ -183,7 +200,12 @@ def create_post():
 
     image_url = upload_to_blob(image)
 
-    post = Post(title=title, content=content, image_url=image_url)
+    post = Post(
+        title=title,
+        content=content,
+        image_url=image_url,
+        user_id=session.get("user_id"),          # author -> user.id (if logged in)
+    )
 
     db.session.add(post)
     db.session.commit()
@@ -205,11 +227,13 @@ def get_posts():
             "title": post.title,
             "content": post.content,
             "image_url": post.image_url,
+            "author": post.author.name if post.author else "Anonymous",
             "created_at": post.created_at.strftime("%Y-%m-%d %H:%M"),
             "comments": [
                 {
                     "id": comment.id,
                     "comment": comment.comment,
+                    "author": comment.author.name if comment.author else "Anonymous",
                     "created_at": comment.created_at.strftime("%Y-%m-%d %H:%M"),
                 }
                 for comment in comments
@@ -224,7 +248,11 @@ def add_comment():
     post_id = request.form["post_id"]
     comment_text = request.form["comment"]
 
-    comment = Comment(post_id=post_id, comment=comment_text)
+    comment = Comment(
+        post_id=post_id,
+        comment=comment_text,
+        user_id=session.get("user_id"),          # author -> user.id (if logged in)
+    )
 
     db.session.add(comment)
     db.session.commit()
@@ -248,7 +276,8 @@ def delete_post(post_id):
 def rate_event():
     rating = Rating(
         event_id=request.form["event_id"],
-        rating=int(request.form["rating"])
+        rating=int(request.form["rating"]),
+        user_id=session.get("user_id"),          # rater -> user.id (if logged in)
     )
 
     db.session.add(rating)
@@ -275,34 +304,41 @@ def weather(city):
     })
 
 
+# =====================================================================
+# DATABASE INITIALIZATION
+# =====================================================================
 with app.app_context():
     db.create_all()
 
+    if User.query.count() == 0:
+        sample_users = [
+            User(name="Sai Muppidi",          email="sai.muppidi@techbridge.org",   password=generate_password_hash("Password123")),
+            User(name="Sriram Katta",         email="sriram.katta@techbridge.org",  password=generate_password_hash("Password123")),
+            User(name="Deepika Uppula",       email="deepika.uppula@techbridge.org",password=generate_password_hash("Password123")),
+            User(name="Venkata Vijay Andala", email="vijay.andala@techbridge.org",  password=generate_password_hash("Password123")),
+            User(name="Hoang Le",             email="hoang.le@techbridge.org",       password=generate_password_hash("Password123")),
+        ]
+        db.session.add_all(sample_users)
+        db.session.commit()
+
     if Event.query.count() == 0:
         sample_events = [
-            Event(
-                title="Cloud Computing Study Group",
-                location="Charlotte Technology Center",
-                city="Charlotte",
-                event_date="Saturday 10:00 AM",
-                description="Weekly Azure, AWS, and DevOps study session."
-            ),
-            Event(
-                title="Python Flask Workshop",
-                location="Community Innovation Hub",
-                city="Charlotte",
-                event_date="Sunday 2:00 PM",
-                description="Hands-on workshop for building Flask cloud apps."
-            ),
-            Event(
-                title="DevOps Career Meetup",
-                location="Uptown Charlotte",
-                city="Charlotte",
-                event_date="Friday 6:00 PM",
-                description="Networking event for Cloud and DevOps learners."
-            ),
+            Event(title="Cloud Computing Study Group", location="Charlotte Technology Center",
+                  city="Charlotte", event_date="Saturday 10:00 AM",
+                  description="Weekly Azure, AWS, and DevOps study session.", created_by=1),
+            Event(title="Python Flask Workshop", location="Community Innovation Hub",
+                  city="Charlotte", event_date="Sunday 2:00 PM",
+                  description="Hands-on workshop for building Flask cloud apps.", created_by=1),
+            Event(title="DevOps Career Meetup", location="Uptown Charlotte",
+                  city="Charlotte", event_date="Friday 6:00 PM",
+                  description="Networking event for Cloud and DevOps learners.", created_by=2),
+            Event(title="Azure Certification Bootcamp", location="Northlake Learning Center",
+                  city="Charlotte", event_date="Wednesday 5:30 PM",
+                  description="AZ-900 and AZ-104 exam preparation bootcamp.", created_by=3),
+            Event(title="Data Engineering Meetup", location="South End Coworking Space",
+                  city="Charlotte", event_date="Thursday 6:30 PM",
+                  description="Talks on data pipelines, SQL, and analytics.", created_by=4),
         ]
-
         db.session.add_all(sample_events)
         db.session.commit()
 
